@@ -4,6 +4,8 @@ using SGCN.Application;
 using SGCN.Infrastructure;
 using SGCN.Infrastructure.Data;
 using SGCN.Infrastructure.Identity;
+using Microsoft.EntityFrameworkCore;
+using SGCN.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,6 +43,11 @@ if (app.Environment.IsDevelopment())
     await DevelopmentAdminSeeder.SeedAsync(app.Services, app.Configuration);
 }
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 await ReferentialSeeder.SeedAsync(app.Services);
 
 app.UseMiddleware<GlobalExceptionMiddleware>();

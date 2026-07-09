@@ -6,7 +6,9 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import { authStore, useAuth } from '../../store/authStore';
+
 import logo from '../../assets/symbole-national.jpg';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuth();
@@ -34,8 +36,8 @@ export default function LoginPage() {
 
       authStore.setSession(result.data);
       navigate(result.data.forcePasswordChange ? '/change-password' : '/', { replace: true });
-    } catch {
-      setError('Connexion impossible pour le moment.');
+    } catch(error) {
+      setError(getApiErrorMessage(error, 'Connexion impossible pour le moment.'));
     } finally {
       setLoading(false);
     }

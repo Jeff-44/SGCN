@@ -29,7 +29,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174", "sgcn.up.railway.app")
+            .WithOrigins("http://localhost:5173", "http://localhost:5174", "https://sgcn.up.railway.app")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

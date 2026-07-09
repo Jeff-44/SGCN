@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IVerificationCodeGenerator, VerificationCodeGenerator>();
         services.AddScoped<ICertificateRequestService, CertificateRequestService>();
         services.AddScoped<ICertificateService, CertificateService>();
+        services.AddScoped<IDashboardService, DashboardService>();
 
         return services;
     }

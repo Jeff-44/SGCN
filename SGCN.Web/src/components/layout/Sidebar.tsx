@@ -22,7 +22,12 @@ type SidebarProps = {
 };
 
 const items = [
-  { label: 'Dashboard', path: '/', icon: Home, roles: [Roles.Administrateur] },
+  {
+    label: 'Dashboard',
+    path: '/',
+    icon: Home,
+    roles: [Roles.Administrateur, Roles.AgentEtatCivil, Roles.Medecin, Roles.Citoyen]
+  },
   { label: 'Users', path: '/users', icon: Users, roles: [Roles.Administrateur] },
   { label: 'Departments', path: '/referentials/departments', icon: Landmark, roles: [Roles.Administrateur] },
   { label: 'Communes', path: '/referentials/communes', icon: Building2, roles: [Roles.Administrateur] },

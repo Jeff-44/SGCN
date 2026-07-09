@@ -1,0 +1,11 @@
+@SGCN.Api_HostAddress = http://localhost:5107
+
+GET {{SGCN.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{SGCN.Api_HostAddress}}/api/v1/health
+Accept: application/json
+
+###

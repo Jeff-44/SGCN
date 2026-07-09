@@ -1,0 +1,101 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.log
+SGCN.Api/App_Data/DataProtectionKeys/
+
+############################
+# Visual Studio
+############################
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+############################
+# VS Code
+############################
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+############################
+# .NET
+############################
+[Bb]in/
+[Oo]bj/
+TestResults/
+*.cache
+*.pdb
+*.mdb
+
+############################
+# Entity Framework
+############################
+Migrations/*Designer.cs
+
+############################
+# React / Node
+############################
+node_modules/
+dist/
+build/
+coverage/
+.npm/
+.pnpm-store/
+
+############################
+# Logs
+############################
+*.log
+logs/
+
+############################
+# Environment files
+############################
+.env
+.env.*
+!.env.example
+
+############################
+# Secrets
+############################
+Secrets/
+*.pfx
+*.snk
+
+############################
+# OS Files
+############################
+.DS_Store
+Thumbs.db
+
+############################
+# Rider
+############################
+.idea/
+
+############################
+# Docker
+############################
+docker-data/
+
+############################
+# Temporary
+############################
+tmp/
+temp/
+*.tmp
+
+############################
+# AI / Local tools
+############################
+.codex-build/

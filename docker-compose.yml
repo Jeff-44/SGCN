@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: sgcn-postgres
+    environment:
+      POSTGRES_DB: sgcn
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Sgcn@2026Dev!
+    ports:
+      - "5433:5432"
+    volumes:
+      - sgcn_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sgcn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sgcn_postgres_data:

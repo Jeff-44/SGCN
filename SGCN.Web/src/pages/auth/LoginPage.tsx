@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import { authStore, useAuth } from '../../store/authStore';
+import logo from '../../assets/symbole-national.jpg';
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuth();
@@ -41,12 +42,29 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
-      <Card className="w-full max-w-md p-6">
-        <div className="mb-6">
-          <p className="text-2xl font-bold text-slate-950">SGCN</p>
-          <p className="mt-1 text-sm text-slate-500">Système de Gestion des Certificats de Naissance</p>
-        </div>
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-slate-50 px-4 py-10">
+      <img
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 m-auto h-[520px] w-[520px] opacity-5"
+        src={logo}
+      />
+      <Card className="relative z-10 w-full max-w-md p-6">
+        <div className="mb-6 flex flex-col items-center text-center">
+        <img
+          src={logo}
+          alt="SGCN Logo"
+          className="mb-4 h-20 w-20 object-contain"
+        />
+
+        <h1 className="text-2xl font-bold text-slate-950">
+          SGCN
+        </h1>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Système de Gestion des Certificats de Naissance
+        </p>
+      </div>
         <form className="grid gap-4" onSubmit={submit}>
           <Input autoComplete="email" label="Email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
           <Input

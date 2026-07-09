@@ -37,11 +37,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 await IdentitySeeder.SeedRolesAsync(app.Services);
-
-if (app.Environment.IsDevelopment())
-{
-    await DevelopmentAdminSeeder.SeedAsync(app.Services, app.Configuration);
-}
+await DevelopmentAdminSeeder.SeedAsync(app.Services, app.Configuration);
 
 using (var scope = app.Services.CreateScope())
 {

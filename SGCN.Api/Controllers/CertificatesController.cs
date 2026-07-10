@@ -62,6 +62,34 @@ public sealed class CertificatesController : ControllerBase
         return StatusCode(ApiResponseStatusCodes.From(result), result);
     }
 
+    [HttpGet("{id:guid}/pdf")]
+    [Authorize(Roles = SystemRoles.Citoyen + "," + SystemRoles.AgentEtatCivil + "," + SystemRoles.Administrateur)]
+    public async Task<IActionResult> DownloadPdf(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId();
+        if (string.IsNullOrWhiteSpace(currentUserId))
+        {
+            return Unauthorized(ApiResponse<CertificatePdfResponse>.Fail("L’identité de l’utilisateur est indisponible."));
+        }
+
+        var result = await _service.GetPdfAsync(
+            id,
+            currentUserId,
+            User.IsInRole(SystemRoles.Citoyen),
+            User.IsInRole(SystemRoles.Administrateur),
+            cancellationToken);
+
+        if (!result.Success || result.Data is null)
+        {
+            return StatusCode(ApiResponseStatusCodes.From(result), result);
+        }
+
+        Response.Headers.CacheControl = "no-store";
+        return File(result.Data.Content, result.Data.ContentType, result.Data.FileName);
+    }
+
     [HttpGet("preview/from-request/{requestId:guid}")]
     [Authorize(Roles = SystemRoles.AgentEtatCivil + "," + SystemRoles.Administrateur)]
     public async Task<ActionResult<ApiResponse<CertificatePreviewResponse>>> PreviewFromRequest(

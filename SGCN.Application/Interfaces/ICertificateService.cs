@@ -18,6 +18,13 @@ public interface ICertificateService
         bool isAdministrator,
         CancellationToken cancellationToken = default);
 
+    Task<ApiResponse<CertificatePdfResponse>> GetPdfAsync(
+        Guid id,
+        string currentUserId,
+        bool isCitizen,
+        bool isAdministrator,
+        CancellationToken cancellationToken = default);
+
     Task<ApiResponse<CertificatePreviewResponse>> PreviewFromRequestAsync(
         Guid requestId,
         CancellationToken cancellationToken = default);

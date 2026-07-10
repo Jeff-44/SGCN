@@ -11,7 +11,7 @@ internal static class ApiResponseStatusCodes
             return StatusCodes.Status200OK;
         }
 
-        if (Contains(response, "not found"))
+        if (Contains(response, "not found") || Contains(response, "introuvable"))
         {
             return StatusCodes.Status404NotFound;
         }
@@ -23,14 +23,24 @@ internal static class ApiResponseStatusCodes
             return StatusCodes.Status400BadRequest;
         }
 
-        if (Contains(response, "unauthorized"))
+        if (Contains(response, "unauthorized") || Contains(response, "identité de l’utilisateur est indisponible"))
         {
             return StatusCodes.Status401Unauthorized;
         }
 
-        if (Contains(response, "forbidden"))
+        if (Contains(response, "forbidden") || Contains(response, "pas autorisé"))
         {
             return StatusCodes.Status403Forbidden;
+        }
+
+        if (Contains(response, "annulé"))
+        {
+            return StatusCodes.Status409Conflict;
+        }
+
+        if (Contains(response, "a échoué"))
+        {
+            return StatusCodes.Status500InternalServerError;
         }
 
         return StatusCodes.Status400BadRequest;

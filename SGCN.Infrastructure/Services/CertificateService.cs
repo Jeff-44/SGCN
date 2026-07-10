@@ -1,4 +1,7 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SGCN.Application.DTOs.Certificates;
 using SGCN.Application.DTOs.Common;
 using SGCN.Application.Interfaces;
@@ -13,15 +16,27 @@ public sealed class CertificateService : ICertificateService
     private readonly ApplicationDbContext _dbContext;
     private readonly ICertificateNumberGenerator _certificateNumberGenerator;
     private readonly IVerificationCodeGenerator _verificationCodeGenerator;
+    private readonly IPdfService _pdfService;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<CertificateService> _logger;
 
     public CertificateService(
         ApplicationDbContext dbContext,
         ICertificateNumberGenerator certificateNumberGenerator,
-        IVerificationCodeGenerator verificationCodeGenerator)
+        IVerificationCodeGenerator verificationCodeGenerator,
+        IPdfService pdfService,
+        IEmailService emailService,
+        IConfiguration configuration,
+        ILogger<CertificateService> logger)
     {
         _dbContext = dbContext;
         _certificateNumberGenerator = certificateNumberGenerator;
         _verificationCodeGenerator = verificationCodeGenerator;
+        _pdfService = pdfService;
+        _emailService = emailService;
+        _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<IReadOnlyCollection<CertificateResponse>>> GetAllAsync(
@@ -84,6 +99,66 @@ public sealed class CertificateService : ICertificateService
         }
 
         return ApiResponse<CertificateResponse>.Ok(Map(certificate), "Certificate retrieved successfully.");
+    }
+
+    public async Task<ApiResponse<CertificatePdfResponse>> GetPdfAsync(
+        Guid id,
+        string currentUserId,
+        bool isCitizen,
+        bool isAdministrator,
+        CancellationToken cancellationToken = default)
+    {
+        var certificateResult = await GetByIdAsync(
+            id,
+            currentUserId,
+            isCitizen,
+            isAdministrator,
+            cancellationToken);
+
+        if (!certificateResult.Success || certificateResult.Data is null)
+        {
+            var message = certificateResult.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? "Certificat introuvable."
+                : "Vous n’êtes pas autorisé à télécharger ce certificat.";
+
+            return ApiResponse<CertificatePdfResponse>.Fail(message);
+        }
+
+        if (certificateResult.Data.Status == CertificateStatus.Annulled)
+        {
+            return ApiResponse<CertificatePdfResponse>.Fail(
+                "Un certificat annulé ne peut pas être téléchargé.");
+        }
+
+        try
+        {
+            var content = await _pdfService.GeneratePdfAsync(
+                "certificate",
+                certificateResult.Data,
+                cancellationToken);
+
+            if (content.Length == 0)
+            {
+                throw new InvalidOperationException("The generated certificate PDF is empty.");
+            }
+
+            return ApiResponse<CertificatePdfResponse>.Ok(
+                new CertificatePdfResponse(
+                    content,
+                    $"certificat-{certificateResult.Data.CertificateNumber}.pdf",
+                    "application/pdf"),
+                "Le certificat a été généré au format PDF.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Certificate PDF generation failed for certificate {CertificateId}.", id);
+            return ApiResponse<CertificatePdfResponse>.Fail(
+                "Le téléchargement du certificat a échoué.");
+        }
     }
 
     public async Task<ApiResponse<CertificatePreviewResponse>> PreviewFromRequestAsync(
@@ -156,6 +231,7 @@ public sealed class CertificateService : ICertificateService
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var request = await _dbContext.CertificateRequests
+            .Include(item => item.RequestedByUser)
             .FirstOrDefaultAsync(item => item.Id == requestId && !item.IsDeleted, cancellationToken);
 
         if (request is null)
@@ -204,6 +280,8 @@ public sealed class CertificateService : ICertificateService
         await _dbContext.Certificates.AddAsync(certificate, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        await TrySendCertificateAvailableEmailAsync(certificate, request.RequestedByUser);
 
         return ApiResponse<CertificateResponse>.Ok(Map(certificate), "Certificate generated successfully.");
     }
@@ -279,9 +357,7 @@ public sealed class CertificateService : ICertificateService
         Domain.Identity.ApplicationUser createdByUser,
         CancellationToken cancellationToken)
     {
-        // TODO: Generate and store the PDF file for the certificate.
         // TODO: Generate and store the QR code file for public verification.
-        // TODO: Notify the requester by email when notification delivery is implemented.
         return new Certificate
         {
             CertificateNumber = await _certificateNumberGenerator.GenerateAsync(cancellationToken),
@@ -307,6 +383,71 @@ public sealed class CertificateService : ICertificateService
             PdfPath = null,
             QrCodePath = null
         };
+    }
+
+    private async Task TrySendCertificateAvailableEmailAsync(
+        Certificate certificate,
+        Domain.Identity.ApplicationUser requestedByUser)
+    {
+        if (string.IsNullOrWhiteSpace(requestedByUser.Email))
+        {
+            _logger.LogWarning(
+                "Certificate availability email was not sent for certificate {CertificateNumber} because requester {RequesterId} has no email address.",
+                certificate.CertificateNumber,
+                requestedByUser.Id);
+            return;
+        }
+
+        try
+        {
+            var frontendBaseUrl = _configuration["Frontend:BaseUrl"]?.Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(frontendBaseUrl))
+            {
+                throw new InvalidOperationException("Frontend:BaseUrl is not configured.");
+            }
+
+            var fullName = WebUtility.HtmlEncode(requestedByUser.FullName);
+            var certificateNumber = WebUtility.HtmlEncode(certificate.CertificateNumber);
+            var certificatesUrl = $"{frontendBaseUrl}/certificates";
+            var encodedCertificatesUrl = WebUtility.HtmlEncode(certificatesUrl);
+            var body = $"""
+                <!doctype html>
+                <html lang="fr">
+                <body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a;">
+                  <div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:24px;">
+                    <h1 style="margin:0 0 20px;font-size:22px;">SGCN</h1>
+                    <p>Bonjour {fullName},</p>
+                    <p>Votre certificat de naissance portant le numéro <strong>{certificateNumber}</strong> est maintenant disponible dans votre compte SGCN.</p>
+                    <p>Connectez-vous à votre compte pour le consulter et le télécharger au format PDF.</p>
+                    <p style="margin:24px 0;">
+                      <a href="{encodedCertificatesUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:6px;padding:12px 18px;">Accéder à SGCN</a>
+                    </p>
+                    <p style="word-break:break-all;">{encodedCertificatesUrl}</p>
+                    <p style="margin-top:24px;">Cordialement,<br>SGCN<br>Système de Gestion des Certificats de Naissance</p>
+                  </div>
+                </body>
+                </html>
+                """;
+
+            await _emailService.SendEmailAsync(
+                requestedByUser.Email,
+                "Votre certificat de naissance est disponible",
+                body,
+                CancellationToken.None);
+
+            _logger.LogInformation(
+                "Certificate availability email sent for certificate {CertificateNumber} to requester {RequesterId}.",
+                certificate.CertificateNumber,
+                requestedByUser.Id);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Certificate availability email failed for certificate {CertificateNumber} and requester {RequesterId}.",
+                certificate.CertificateNumber,
+                requestedByUser.Id);
+        }
     }
 
     private async Task<string?> ValidateBirthRecordCanCreateCertificateAsync(

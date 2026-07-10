@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Ban, Eye, FilePlus2, Search } from 'lucide-react';
+import { Ban, Download, Eye, FilePlus2, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   annulCertificate,
+  downloadCertificatePdf,
   generateCertificateFromBirthRecord,
   generateCertificateFromRequest,
   getCertificates
@@ -17,6 +18,7 @@ import Select from '../../components/ui/Select';
 import Table from '../../components/ui/Table';
 import { useAuth } from '../../store/authStore';
 import type { Certificate } from '../../types/certificate';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { formatDate, formatDateTime } from '../../utils/date';
 import { hasAnyRole, hasRole, Roles } from '../../utils/roles';
 
@@ -28,7 +30,9 @@ export default function CertificatesPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [generateMode, setGenerateMode] = useState<GenerateMode>('request');
   const [generateId, setGenerateId] = useState('');
   const [generateOpen, setGenerateOpen] = useState(false);
@@ -100,6 +104,34 @@ export default function CertificatesPage() {
     }
   }
 
+  async function downloadPdf(certificate: Certificate) {
+    if (downloadingId) {
+      return;
+    }
+
+    setDownloadingId(certificate.id);
+    setError('');
+    setSuccess('');
+
+    try {
+      const download = await downloadCertificatePdf(certificate.id);
+      const objectUrl = URL.createObjectURL(download.blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = download.fileName;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      setSuccess('Le certificat a été téléchargé avec succès.');
+    } catch (error) {
+      setError(getApiErrorMessage(error, 'Le téléchargement du certificat a échoué.'));
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   async function submitAnnul(event: FormEvent) {
     event.preventDefault();
     if (!annulling) {
@@ -159,6 +191,7 @@ export default function CertificatesPage() {
       </Card>
 
       {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+      {success ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p> : null}
 
       <Card>
         {loading ? (
@@ -222,6 +255,16 @@ export default function CertificatesPage() {
                       <Eye size={16} />
                       Aperçu
                     </Link>
+                    {item.status === 'Active' ? (
+                      <Button
+                        disabled={downloadingId !== null}
+                        icon={<Download size={16} />}
+                        onClick={() => void downloadPdf(item)}
+                        variant="secondary"
+                      >
+                        {downloadingId === item.id ? 'Téléchargement...' : 'Télécharger PDF'}
+                      </Button>
+                    ) : null}
                     {canAnnul && item.status === 'Active' ? (
                       <Button
                         icon={<Ban size={16} />}

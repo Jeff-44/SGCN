@@ -31,7 +31,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins("http://localhost:5173", "http://localhost:5174", "https://sgcn.up.railway.app")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders("Content-Disposition");
     });
 });
 var app = builder.Build();
